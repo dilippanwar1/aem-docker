@@ -1,0 +1,118 @@
+version: '2'
+
+## DO NOT use the default bridge as containers cannot find each other using names in the default bridge
+## This is due to backward compatability: https://docs.docker.com/engine/userguide/networking/
+#networks:
+#  default:
+#    external:
+#      name: bridge
+
+networks:
+    aem-network:
+
+services:
+    aem-base:
+        build:
+          context: ./AEM
+          dockerfile: Dockerfile-AEM-base
+        image: docker-tam-dev.dr.corp.adobe.com/aem-base:AEM6.1.0-SP1
+        container_name: base
+        # hostname: base.mgschwind.com
+        # network_mode: bridge
+        networks:
+            aem-network:
+                aliases:
+                    - aem-base
+    publish:
+        build:
+          context: ./AEM
+          dockerfile: Dockerfile-AEM-publish
+        image: docker-tam-dev.dr.corp.adobe.com/aem-publish:AEM6.1.0-SP1
+        container_name: publish
+        mem_limit: 2g
+        # hostname: publish.mgschwind.com
+        # network_mode: bridge
+        networks:
+            aem-network:
+                aliases:
+                    - publish
+        ports:
+            - "4503:4503"
+            - "4603:4603"
+            - "40404:40404"
+        ## Link is only set for docker-compose build and start-up (aem-base first, then publish, then author)
+        links:
+            - aem-base
+        #logging:
+        #    driver: syslog
+        #    options:
+        #        syslog-address: "tcp://192.168.99.1:514"
+        volumes:
+            # Specify an absolute path mapping
+            #- ${PWD}/dockervolume/aem-publish/launchpad:/opt/aem/crx-quickstart/launchpad
+            #- ${PWD}/dockervolume/aem-publish/conf:/opt/aem/crx-quickstart/conf
+            - ${PWD}/dockervolume/aem-publish/install:/opt/aem/crx-quickstart/install
+            - ${PWD}/dockervolume/aem-publish/logs:/opt/aem/crx-quickstart/logs
+    author:
+        build:
+          context: ./AEM
+          dockerfile: Dockerfile-AEM-author
+        image: docker-tam-dev.dr.corp.adobe.com/aem-author:AEM6.1.0-SP1
+        container_name: author
+        mem_limit: 2g
+        # hostname: author.mgschwind.com
+        # network_mode: bridge
+        networks:
+            aem-network:
+                aliases:
+                    - author
+        ports:
+            - "4502:4502"
+            - "4602:4602"
+            - "30303:30303"
+        ## Link is only set for docker-compose build and start-up (aem-base first, then publish, then author)
+        links:
+            - aem-base
+        #logging:
+        #    driver: syslog
+        #    options:
+        #        syslog-address: "tcp://192.168.99.1:514"
+        volumes:
+            # Specify an absolute path mapping
+            #- ${PWD}/dockervolume/aem-author/launchpad:/opt/aem/crx-quickstart/launchpad
+            #- ${PWD}/dockervolume/aem-author/conf:/opt/aem/crx-quickstart/conf
+            - ${PWD}/dockervolume/aem-author/install:/opt/aem/crx-quickstart/install
+            - ${PWD}/dockervolume/aem-author/logs:/opt/aem/crx-quickstart/logs
+
+    dispatcher:
+        build:
+          context: ./Dispatcher
+          dockerfile: Dockerfile
+        image: docker-tam-dev.dr.corp.adobe.com/apache-dispatcher:2.4-4.1.12
+        container_name: dispatcher
+        mem_limit: 2g
+        # hostname: dispatcher.mgschwind.com
+        # network_mode: bridge
+        networks:
+            aem-network:
+                aliases:
+                    - dispatcher
+        ports:
+            - "80:80"
+        ## Link is only set for docker-compose build and start-up order (aem-base first)
+        links:
+            - publish
+        #logging:
+        #    driver: syslog
+        #    options:
+        #        syslog-address: "tcp://192.168.99.1:514"
+        volumes:
+            # Specify an absolute path mapping
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/sites-enabled:/etc/apache2/sites-enabled
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/conf-enabled:/etc/apache2/conf-enabled
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/conf.d:/etc/apache2/conf.d
+            - ${PWD}/dockervolume/aem-dispatcher/var/www/html:/var/www/html
+            - ${PWD}/dockervolume/aem-dispatcher/var/log/apache2:/var/log/apache2
+        environment:
+            - DISPATCHER_PUBLISH_PORT=4503
+            - DISPATCHER_PUBLISH_HOSTNAME=publish

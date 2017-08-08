@@ -1,0 +1,65 @@
+FROM java7
+MAINTAINER Atos
+EXPOSE 4502
+
+ENTRYPOINT ["/conf_2_run.sh"]
+
+ENV CQ_RUNMODE author
+ENV CQ_PORT 4502
+VOLUME ["/pkgs"]
+
+RUN yum update -y && yum install -y unix2dos && \
+	yum clean all && \
+	mkdir -p /pkgs /opt/aem /hotfixes
+
+ADD files/cq-author /etc/default/
+RUN mkdir -m 770 /var/run/aem
+
+ADD files/license.properties /opt/aem/author/
+ADD files/AEM_6.0_Quickstart.jar /opt/aem/author/cq-author-p4502.jar
+
+# RUN echo sling.run.modes=${CQ_RUNMODE} >> crx-quickstart/conf/sling.properties && \
+#     crx-quickstart/bin/start && \
+#     until $(curl -u admin:admin --output /dev/null --silent --head --fail http://localhost:$CQ_PORT); do printf '.'; sleep 5; done && \
+#     curl -uadmin:admin 'http://localhost:4502/etc/replication/agents.author/publish/jcr:content' \
+#     -X POST \
+# 	  --data-urlencode "./transportUri=http://${PUBLISH_HOST}:4503/bin/receive?sling:authRequestLogin=1" \
+# 	  --data-urlencode "./transportUser=admin" \
+# 	  --data-urlencode "./transportPassword=admin" && \
+#     crx-quickstart/bin/stop
+
+# RUN chmod +x $AEM_WORKING_DIR/crx-quickstart/bin/quickstart
+# CMD $AEM_WORKING_DIR/compaction.sh && java \
+#   	-Dcom.sun.management.jmxremote \
+#   	-Dcom.sun.management.jmxremote.port=$JMX_PORT \
+#   	-Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT \
+#   	-Dcom.sun.management.jmxremote.ssl=false \
+#   	-Dcom.sun.management.jmxremote.authenticate=false \
+#   	-Dcom.sun.management.jmxremote.local.only=false \
+#     -Djava.rmi.server.hostname=$DOCKER_IP \
+#     -Djava.awt.headless=true \
+#     -Doak.queryLimitInMemory=500000 \
+#     -Doak.queryLimitReads=100000 \
+#     -Dupdate.limit=250000 \
+#     -Doak.fastQuerySize=true \
+#     -XX:+UseConcMarkSweepGC \
+#   	-XX:MaxPermSize=256M -Xms512m -Xmx2048m \
+#     -Xdebug \
+#   	-agentlib:jdwp=transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=n \
+#   	-jar $AEM_QUICKSTART_FILE -p $CQ_PORT -r $CQ_RUNMODE -nobrowser -verbose -nofork
+
+RUN cd /opt/aem/author/ && \
+	java -jar cq-author-p4502.jar -unpack -v && \
+	mkdir /opt/aem/author/crx-quickstart/install
+
+ADD files/AEM_6.0_Service_Pack_1-1.0.zip /opt/aem/author/crx-quickstart/install/
+ADD files/jaas.conf /opt/aem/author/crx-quickstart/conf/
+
+ADD hotfixes/* /hotfixes/
+ADD aem_first_run.sh examine_log.sh /
+RUN /aem_first_run.sh && \
+	rm -rv /hotfixes && \
+	mkdir -p /segmentstore && \
+	mv /opt/aem/author/crx-quickstart/repository/segmentstore/* /segmentstore
+
+ADD conf_2_run.sh web_conf.sh /

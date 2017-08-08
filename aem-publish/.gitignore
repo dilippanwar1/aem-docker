@@ -1,0 +1,56 @@
+## AEM Files - need to be copied into the repository by user
+cq-quickstart-*.jar
+license.properties
+
+## Dockervolume contains volumes exposed in Docker on Host-machine
+dockervolume/aem-author
+dockervolume/aem-publish
+
+
+## Ignore everything in install
+/AEM/packages/install/*
+/AEM/stage-install/*
+## exception to the rule
+!/AEM/install/.gitkeep
+!/AEM/stage-install/.gitkeep
+
+## Windows image file caches
+Thumbs.db
+ehthumbs.db
+## Windows Folder config file
+Desktop.ini
+## Windows Recycle Bin used on file shares
+$RECYCLE.BIN/
+dockervolume/aem-dispatcher/var
+*.jar
+*.zip
+## Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+## Windows shortcuts
+*.lnk
+
+## OSX  defaults
+*.DS_Store
+.AppleDouble
+.LSOverride
+## OSX Icon must end with two \r
+Icon
+## OSX Thumbnails
+._*
+## OSX Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+## OSX Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

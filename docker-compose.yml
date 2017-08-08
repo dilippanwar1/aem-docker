@@ -1,0 +1,128 @@
+version: '3'
+networks:
+    aem-network:
+services:
+    aem-base:
+        build:
+            context: ./aem-base
+            dockerfile: Dockerfile
+        image: aem-base
+        container_name: base
+
+    aem-instance:
+        build:
+            context: ./aem-instance
+        image: aem-instance
+        container_name: instance
+        hostname: aem-instance
+        networks:
+            aem-network:
+                aliases:
+                    - aem-instance
+        links:
+            - aem-base
+
+    aem-publish:
+        build:
+            context: ./aem-publish
+        image: aem-publish
+        container_name: publish
+        restart: always
+        hostname: publish.mgschwind.com
+        networks:
+            aem-network:
+                aliases:
+                    - publish
+        ports:
+            - "4503:4503"
+            - "5503:5503"
+            - "4603:4603"
+            - "40404:40404"
+        links:
+            - aem-instance
+        # env_file:
+        #     - env/publish_regular_start.env
+        #     #- env/publish_reuse.env
+        # volumes_from:
+        #     - publishdata
+        # volumes:
+        #     - volumes/aem-packages/:/pkgs/:ro
+        #     - volumes/signals/publish/:/signals
+        volumes:
+            - ${PWD}/dockervolume/aem-publish/launchpad:/opt/aem/crx-quickstart/launchpad
+            - ${PWD}/dockervolume/aem-publish/conf:/opt/aem/crx-quickstart/conf
+            - ${PWD}/dockervolume/aem-publish/install:/opt/aem/crx-quickstart/install
+            - ${PWD}/dockervolume/aem-publish/logs:/opt/aem/crx-quickstart/logs
+
+    aem-author:
+        build:
+            context: ./aem-author
+        image: aem-author
+        container_name: author
+        restart: always
+        hostname: author.mgschwind.com
+        networks:
+            aem-network:
+                aliases:
+                    - author
+        ports:
+            - "4502:4502"
+            - "5502:5502"
+            - "4602:4602"
+            - "30303:30303"
+        links:
+            - aem-instance
+        # env_file:
+        #     - env/author_regular_start.env
+        #     #- env/author_reuse.env
+        # volumes_from:
+        #     - authordata
+        # volumes:
+        #     - volumes/aem-packages/:/pkgs/:ro
+        #     - volumes/signals/author/:/signals
+        volumes:
+            - ${PWD}/dockervolume/aem-author/launchpad:/opt/aem/crx-quickstart/launchpad
+            - ${PWD}/dockervolume/aem-author/conf:/opt/aem/crx-quickstart/conf
+            - ${PWD}/dockervolume/aem-author/install:/opt/aem/crx-quickstart/install
+            - ${PWD}/dockervolume/aem-author/logs:/opt/aem/crx-quickstart/logs
+
+    aem-dispatcher:
+        build:
+            context: ./aem-dispatcher
+        image: aem-dispatcher
+        container_name: dispatcher
+        restart: always
+        hostname: dispatcher.mgschwind.com
+        networks:
+            aem-network:
+                aliases:
+                    - dispatcher
+        ports:
+            - "80:80"
+            - "443:443"
+        links:
+            - aem-publish
+        volumes:
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/sites-enabled:/etc/apache2/sites-enabled
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/conf-enabled:/etc/apache2/conf-enabled
+            - ${PWD}/dockervolume/aem-dispatcher/apache2/conf.d:/etc/apache2/conf.d
+            - ${PWD}/dockervolume/aem-dispatcher/var/www/html:/var/www/html
+            - ${PWD}/dockervolume/aem-dispatcher/var/log/apache2:/var/log/apache2
+        environment:
+            - DISPATCHER_PUBLISH_PORT=4503
+            - DISPATCHER_PUBLISH_HOSTNAME=publish
+
+
+# publishdata:
+#     image: centos:6.6
+#     entrypoint: /bin/true
+#     volumes:
+#         - volumes/aem-publish-segmentstores/run/:/opt/aem/publish/crx-quickstart/repository/segmentstore/
+#         #- volumes/aem-publish-segmentstores/backup/:/opt/aem/publish/crx-quickstart/repository/segmentstore/
+#
+# authordata:
+#     image: centos:6.6
+#     entrypoint: /bin/true
+#     volumes:
+#         - volumes/aem-author-segmentstores/run/:/opt/aem/author/crx-quickstart/repository/segmentstore/
+#         #- volumes/aem-author-segmentstores/backup/:/opt/aem/author/crx-quickstart/repository/segmentstore/

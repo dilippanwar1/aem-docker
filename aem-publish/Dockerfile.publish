@@ -1,0 +1,52 @@
+FROM java7
+
+MAINTAINER Atos
+EXPOSE 4503
+ENTRYPOINT ["/conf_2_run.sh"]
+ENV CQ_RUNMODE publish
+ENV CQ_PORT 4503
+RUN mkdir -p /pkgs /opt/aem /hotfixes /segmentstore
+
+ADD files/cq-publish /etc/default/
+RUN mkdir -m 770 /var/run/aem && \
+	mkdir -p /opt/aem/publish
+
+ADD files/license.properties /opt/aem/publish/
+ADD files/AEM_6.0_Quickstart.jar /opt/aem/publish/cq-publish-p4503.jar
+
+RUN cd /opt/aem/publish && \
+	java -jar cq-publish-p4503.jar -unpack && \
+	mkdir /opt/aem/publish/crx-quickstart/install
+COPY files/AEM_6.0_Service_Pack_1-1.0.zip /opt/aem/publish/crx-quickstart/install/
+
+ADD hotfixes/* /hotfixes/
+ADD aem_first_run.sh examine_log.sh /
+RUN /aem_first_run.sh && \
+	rm -rv /hotfixes && \
+	mv -v /opt/aem/publish/crx-quickstart/repository/segmentstore/* /segmentstore/
+
+ADD conf_2_run.sh web_conf.sh /
+
+# RUN echo sling.run.modes=${CQ_RUNMODE} >> crx-quickstart/conf/sling.properties && \
+#     crx-quickstart/bin/start && \
+#     until $(curl -u admin:admin --output /dev/null --silent --head --fail http://localhost:$CQ_PORT); do printf '.'; sleep 5; done && \
+#     crx-quickstart/bin/stop
+
+# RUN chmod +x $AEM_WORKING_DIR/crx-quickstart/bin/quickstart
+# CMD $AEM_WORKING_DIR/compaction.sh && java \
+#   	-Dcom.sun.management.jmxremote \
+#   	-Dcom.sun.management.jmxremote.port=$JMX_PORT \
+#   	-Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT \
+#   	-Dcom.sun.management.jmxremote.ssl=false \
+#   	-Dcom.sun.management.jmxremote.authenticate=false \
+#   	-Dcom.sun.management.jmxremote.local.only=false \
+#     -Djava.awt.headless=true \
+#     -Doak.queryLimitInMemory=500000 \
+#     -Doak.queryLimitReads=100000 \
+#     -Dupdate.limit=250000 \
+#     -Doak.fastQuerySize=true \
+#     -XX:+UseConcMarkSweepGC \
+# 	  -XX:MaxPermSize=256M -Xms512m -Xmx2048m \
+#     -Xdebug \
+#   	-agentlib:jdwp=transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=n \
+#   	-jar $AEM_QUICKSTART_FILE -p $CQ_PORT -r $CQ_RUNMODE -nobrowser -verbose -nofork
